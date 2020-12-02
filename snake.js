@@ -46,7 +46,8 @@ const snake = {
         break;
       }
     }
-    this.direction = dir;
+    if (['right', 'left', 'up', 'down'].includes(dir))
+      this.direction = dir;
   },
 
   move(size, replace, isCandy, candyFound, gameOver) {
