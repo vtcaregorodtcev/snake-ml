@@ -1,5 +1,5 @@
 :root {
-  --size: 20px;
+  --size: 15px;
   --color-border: #aaa;
 }
 
@@ -60,8 +60,40 @@ body {
   display: table-cell;
 }
 
-.cell.snake {
+div[class*="snake_1"].cell {
   background: black;
+}
+
+div[class*="snake_2"].cell {
+  background: green;
+}
+
+div[class*="snake_3"].cell {
+  background: blue;
+}
+
+div[class*="snake_4"].cell {
+  background: yellow;
+}
+
+div[class*="snake_5"].cell {
+  background: aquamarine;
+}
+
+div[class*="snake_6"].cell {
+  background: blueviolet;
+}
+
+div[class*="snake_7"].cell {
+  background: chocolate;
+}
+
+div[class*="snake_8"].cell {
+  background: darkolivegreen;
+}
+
+div[class*="snake_9"].cell {
+  background: fuchsia;
 }
 
 .cell.candy {

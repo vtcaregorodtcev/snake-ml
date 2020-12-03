@@ -1,31 +1,328 @@
 const id = 'game';
 const size = 30;
-const tick = 90;
-let gameTimeout;
+const tick = 10;
+const GOAL = 10;
 
-const toggleSnake = (body) => {
-  for (let i = 0; i < body.length; i++) {
-    const [x, y] = body[i];
+class Table {
+  size;
+  cells;
 
-    document.getElementById(getCoordsSelector(x, y)).classList.toggle('snake')
+  candy;
+
+  constructor(size) {
+    this.size = size;
+
+    this.cells = (() => {
+      let cells = []
+
+      for (let i = 0; i < this.size; i++) {
+        for (let j = 0; j < this.size; j++) {
+          if (!cells[i]) cells[i] = [];
+
+          cells[i][j] = this.getCell(i, j)
+        }
+      }
+
+      return cells;
+    })()
+  }
+
+  static getCoordsSelector = (x, y) => `x:${x}_y:${y}`;
+
+  getCell = (x, y) => {
+    const div = document.createElement('div')
+    div.classList.add('cell')
+    div.id = Table.getCoordsSelector(x, y)
+
+    return div.outerHTML
+  };
+
+  draw = () => {
+    const game = document.getElementById('game');
+
+    for (let i = 0; i < this.size; i++) {
+      const row = document.createElement('div')
+
+      row.classList.add('row')
+      row.innerHTML = this.cells[i].join('');
+
+      game.appendChild(row)
+    }
+  }
+
+  toggleSnakeClass = (x, y, id) => {
+    const cell = document.getElementById(
+      Table.getCoordsSelector(x, y)
+    )
+
+    cell.classList.toggle(`snake_${id}`)
+  }
+
+  isCandy = ([x, y]) => {
+    return document.getElementById(
+      Table.getCoordsSelector(x, y)
+    ).classList.contains('candy')
+  }
+
+  isSnake = ([x, y], id) => {
+    return document.getElementById(
+      Table.getCoordsSelector(x, y)
+    ).className.split(' ').some(c => new RegExp(`snake_${id}`).test(c))
+  }
+
+  putCandy = () => {
+    const x = Math.floor(Math.random() * Math.floor(this.size));
+    const y = Math.floor(Math.random() * Math.floor(this.size));
+
+    document.getElementById(
+      Table.getCoordsSelector(x, y)
+    ).classList.add('candy')
+
+    this.candy = { x, y }
+  }
+
+  candyFound = () => {
+    document.getElementById(
+      Table.getCoordsSelector(this.candy.x, this.candy.y)
+    ).classList.remove('candy');
+
+    this.putCandy();
+  }
+
+  getDistanceToCandy = (x1, y1) => {
+    return Math.sqrt(Math.pow(Math.abs(x1 - this.candy.x), 2) + Math.pow(Math.abs(y1 - this.candy.y), 2))
   }
 }
 
-const snake = {
-  body: [[0, 0], [0, 1], [0, 2]],
-  direction: 'right',
+class Snake {
+  body;
+  direction;
+  table;
 
-  checkCollision() {
-    return new Set(this.body.map(coords => getCoordsSelector(coords[0], coords[1]))).size !== this.body.length
-  },
+  brain;
 
-  normalize([x, y], size) {
-    return [x >= 0 ? (x % size) : (size + x), y >= 0 ? (y % size) : (size + y)]
-  },
+  id = Snake.rand();
+  isDead = false;
+  score = 0;
+  lifeTime = 1;
+  fitness;
 
-  noDeth(size) {
-    this.body = this.body.map(([x, y]) => this.normalize([x, y], size))
-  },
+  constructor(
+    table,
+    brain = new NeuralNetwork(16, 32, 4),
+    body = [[0, 0], [0, 1], [0, 2]],
+    direction = 'right'
+  ) {
+    this.table = table;
+    this.body = body;
+    this.direction = direction;
+
+    this.brain = brain;
+  }
+
+  static moves = ['up', 'right', 'down', 'left'];
+
+  static rand = () => Math.floor(Math.random() * Math.floor(Date.now()));
+
+  getDistanceToHead(x1, y1) {
+    const [x2, y2] = this.body.slice(-1)[0]
+
+    return Math.sqrt(Math.pow(Math.abs(x1 - x2), 2) + Math.pow(Math.abs(y1 - y2), 2))
+  }
+
+  get speedScore() {
+    return this.score / this.lifeTime;
+  }
+
+  get isCollisionDetected() {
+    const coordsToSelector = coords => Table.getCoordsSelector(coords[0], coords[1]);
+
+    return new Set(
+      this.body.map(coordsToSelector)
+    ).size !== this.body.length
+  }
+
+  get inputs() {
+    const [x, y] = this.body.slice(-1)[0]
+    /*
+        const distanceToCandy = this.table.getDistanceToCandy(x, y);
+        const bodyLen = this.body.length;
+
+        let candyBeforeX = false;
+        let snakeBeforeX = false;
+        let candyAfterX = false;
+        let snakeAfterX = false;
+
+        let candyBeforeY = false;
+        let snakeBeforeY = false;
+        let candyAfterY = false;
+        let snakeAfterY = false;
+
+        for (let i = 0; i < x; i++) {
+          if (this.table.isCandy([i, y], this.id)) candyBeforeX = true;
+          if (this.table.isSnake([i, y], this.id)) snakeBeforeX = true;
+        }
+
+        for (let i = 0; i < y; i++) {
+          if (this.table.isCandy([x, i], this.id)) candyBeforeY = true;
+          if (this.table.isSnake([x, i], this.id)) snakeBeforeY = true;
+        }
+
+        for (let i = x + 1; i < this.table.size; i++) {
+          if (this.table.isCandy([i, y], this.id)) candyAfterX = true;
+          if (this.table.isSnake([i, y], this.id)) snakeAfterX = true;
+        }
+
+        for (let i = y + 1; i < this.table.size; i++) {
+          if (this.table.isCandy([x, i], this.id)) candyAfterY = true;
+          if (this.table.isSnake([x, i], this.id)) snakeAfterY = true;
+        }
+    */
+
+    let myBodyIsAbove = 0;
+    let nearestDistanceToMyBodyAbove = this.table.size;
+    let candyIsAbove = 0;
+    let distanceToCandyAbove = this.table.size;
+
+    for (let i = 0; i < x; i++) {
+      if (this.table.isCandy([i, y], this.id)) {
+        candyIsAbove = 1;
+        distanceToCandyAbove = this.table.getDistanceToCandy(x, y)
+      }
+      if (this.table.isSnake([i, y], this.id)) {
+        myBodyIsAbove = 1;
+        nearestDistanceToMyBodyAbove = Math.min(
+          nearestDistanceToMyBodyAbove,
+          this.getDistanceToHead(i, y)
+        )
+      }
+    }
+
+    let myBodyIsRight = 0;
+    let nearestDistanceToMyBodyRight = this.table.size;
+    let candyIsRight = 0;
+    let distanceToCandyRight = this.table.size;
+
+    for (let i = y + 1; i < this.table.size; i++) {
+      if (this.table.isCandy([x, i], this.id)) {
+        candyIsRight = 1;
+        distanceToCandyRight = this.table.getDistanceToCandy(x, y)
+      }
+      if (this.table.isSnake([x, i], this.id)) {
+        myBodyIsRight = 1;
+        nearestDistanceToMyBodyRight = Math.min(
+          nearestDistanceToMyBodyRight,
+          this.getDistanceToHead(x, i)
+        )
+      }
+    }
+
+    let myBodyIsBelow = 0;
+    let nearestDistanceToMyBodyBelow = this.table.size;
+    let candyIsBelow = 0;
+    let distanceToCandyBelow = this.table.size;
+
+    for (let i = x + 1; i < this.table.size; i++) {
+      if (this.table.isCandy([i, y], this.id)) {
+        candyIsBelow = 1;
+        distanceToCandyBelow = this.table.getDistanceToCandy(x, y)
+      }
+      if (this.table.isSnake([i, y], this.id)) {
+        myBodyIsBelow = 1;
+        nearestDistanceToMyBodyBelow = Math.min(
+          nearestDistanceToMyBodyBelow,
+          this.getDistanceToHead(i, y)
+        )
+      }
+    }
+
+    let myBodyIsLeft = 0;
+    let nearestDistanceToMyBodyLeft = this.table.size;
+    let candyIsLeft = 0;
+    let distanceToCandyLeft = this.table.size;
+
+    for (let i = 0; i < y; i++) {
+      if (this.table.isCandy([x, i], this.id)) {
+        candyIsLeft = 1;
+        distanceToCandyLeft = this.table.getDistanceToCandy(x, y)
+      }
+      if (this.table.isSnake([x, i], this.id)) {
+        myBodyIsLeft = 1;
+        nearestDistanceToMyBodyLeft = Math.min(
+          nearestDistanceToMyBodyLeft,
+          this.getDistanceToHead(x, i)
+        )
+      }
+    }
+
+    return [ // check directions from head, if there snake body or candy
+      /*+candyBeforeX, // ^
+      +snakeBeforeX,
+
+      +candyAfterY, // >
+      +snakeAfterY,
+
+      +candyAfterX, // \/
+      +snakeAfterX,
+
+      +candyBeforeY, // <
+      +snakeBeforeY,
+
+      distanceToCandy,
+      bodyLen*/
+
+      myBodyIsAbove,
+      myBodyIsRight,
+      myBodyIsBelow,
+      myBodyIsLeft,
+
+      nearestDistanceToMyBodyAbove,
+      nearestDistanceToMyBodyRight,
+      nearestDistanceToMyBodyBelow,
+      nearestDistanceToMyBodyLeft,
+
+      candyIsAbove,
+      candyIsRight,
+      candyIsBelow,
+      candyIsLeft,
+
+      distanceToCandyAbove,
+      distanceToCandyRight,
+      distanceToCandyBelow,
+      distanceToCandyLeft
+    ];
+  }
+
+  think() {
+    const result = this.brain.predict(this.inputs)
+
+    let max = result[0];
+    let move = Snake.moves[0];
+
+    Snake.moves.map((m, i) => {
+      if (result[i] > max) {
+        max = result[i];
+        move = m;
+      }
+    })
+
+    return move;
+  }
+
+  normalize([x, y]) {
+    return [
+      x >= 0
+        ? (x % this.table.size)
+        : (this.table.size + x),
+      y >= 0
+        ? (y % this.table.size)
+        : (this.table.size + y)
+    ]
+  }
+
+  allowCrossBorders() {
+    this.body = this.body.map(([x, y]) => this.normalize([x, y]))
+  }
 
   setDirection(dir) {
     switch (dir) {
@@ -46,12 +343,25 @@ const snake = {
         break;
       }
     }
-    if (['right', 'left', 'up', 'down'].includes(dir))
+    if (Snake.moves.includes(dir))
       this.direction = dir;
-  },
+  }
 
-  move(size, replace, isCandy, candyFound, gameOver) {
-    replace(this.body)
+  reDrawSnake = () => {
+    for (let i = 0; i < this.body.length; i++) {
+      const [x, y] = this.body[i];
+
+      this.table.toggleSnakeClass(x, y, this.id)
+    }
+  }
+
+  draw = this.reDrawSnake;
+
+  move() {
+    if (this.isDead)
+      return console.error('snake is dead')
+
+    this.reDrawSnake()
 
     const head = this.body.slice(-1)[0]
     let newHead;
@@ -75,106 +385,88 @@ const snake = {
       }
     }
 
-    if (!isCandy(this.normalize(newHead, size))) {
+    if (
+      !this.table.isCandy(
+        this.normalize(newHead)
+      )
+    ) {
       this.body.shift();
     } else {
-      candyFound(newHead);
+      this.table.candyFound();
+      this.score++;
     }
 
     this.body.push(newHead);
 
-    this.noDeth(size);
+    this.allowCrossBorders();
 
-    if (this.checkCollision()) gameOver()
+    if (this.isCollisionDetected)
+      this.isDead = true;
+    else
+      this.lifeTime++;
 
-    replace(this.body)
+    this.reDrawSnake()
   }
 }
 
-const getCoordsSelector = (x, y) => `x:${x}_y:${y}`;
 
-const getCell = (x, y) => {
-  const div = document.createElement('div')
-  div.classList.add('cell')
-  div.id = getCoordsSelector(x, y)
+const init = () => {
+  const table = new Table(size);
 
-  return div.outerHTML
-};
+  table.draw();
+  table.putCandy();
 
-const cells = (() => {
-  let cells = []
+  let snakes = [];
+  for (let i = 0; i < TOTAL; i++) {
+    const snake = new Snake(table);
 
-  for (let i = 0; i < size; i++) {
-    for (let j = 0; j < size; j++) {
-      if (!cells[i]) cells[i] = [];
-
-      cells[i][j] = getCell(i, j)
-    }
+    snake.draw();
+    snakes.push(snake);
   }
 
-  return cells;
-})()
-
-const fillGame = () => {
-  const game = document.getElementById('game');
-
-  for (let i = 0; i < size; i++) {
-    const row = document.createElement('div')
-
-    row.classList.add('row')
-    row.innerHTML = cells[i].join('');
-
-    game.appendChild(row)
-  }
-}
-
-const listenClicks = () => {
-  document.addEventListener('keydown', (e) => {
+  const listen = (e) => {
     const callback = {
       "ArrowLeft": () => snake.setDirection('left'),
       "ArrowRight": () => snake.setDirection('right'),
       "ArrowUp": () => snake.setDirection('up'),
       "ArrowDown": () => snake.setDirection('down'),
     }[e.key]
+
     callback?.()
-  })
-}
+  }
 
-const putCandy = (size) => {
-  const x = Math.floor(Math.random() * Math.floor(size));
-  const y = Math.floor(Math.random() * Math.floor(size));
+  const needNewGeneration = () => {
+    let everyoneIsDead = true;
+    let someoneIsFinished = false;
 
-  document.getElementById(getCoordsSelector(x, y)).classList.add('candy')
-}
+    snakes.map(x => {
+      everyoneIsDead = everyoneIsDead && x.isDead;
+      someoneIsFinished = someoneIsFinished || x.score > GOAL;
+    })
 
-const isCandy = ([x, y]) => {
-  return document.getElementById(getCoordsSelector(x, y)).classList.contains('candy')
-}
+    return everyoneIsDead || someoneIsFinished
+  }
 
-const candyFound = ([x, y]) => {
-  document.getElementById(getCoordsSelector(x, y)).classList.remove('candy');
+  const idle = () => {
 
-  putCandy(size);
-}
+    if (needNewGeneration()) {
+      snakes = newGeneration(snakes, table);
+    }
 
-const gameOver = () => {
-  clearTimeout(gameTimeout)
-}
+    snakes.map((s, i) => {
+      const dir = s.think();
 
-const idle = () => {
-  gameTimeout = setTimeout(idle, tick)
+      s.setDirection(dir);
 
-  snake.move(size, toggleSnake, isCandy, candyFound, gameOver);
-}
+      if (!s.isDead)
+        s.move();
+    })
 
-const init = () => {
-  fillGame();
-  toggleSnake(snake.body);
+    setTimeout(idle, tick)
+  }
 
-  putCandy(size);
-
-  listenClicks();
   setTimeout(idle, tick);
+  document.addEventListener('keydown', listen)
 }
 
 init();
