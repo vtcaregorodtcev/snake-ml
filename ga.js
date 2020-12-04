@@ -1,4 +1,4 @@
-const TOTAL = 100;
+const TOTAL = 200;
 let currentGeneration = 1;
 
 const newGeneration = (snakes, table) => {
@@ -32,14 +32,27 @@ const pickOne = (snakes, table) => {
   let snake = snakes[index]
   let newSnake = new Snake(table, snake.brain)
 
-  newSnake.brain.mutate(x => Math.random() > 0.5 ? x + 0.01 : x - 0.01)
-
   return newSnake;
 }
 
 const calculateFitness = (snakes) => {
   let sumSpeedScore = 0;
 
-  snakes.map(s => sumSpeedScore += s.speedScore)
-  snakes.map(s => s.fitness = s.speedScore / sumSpeedScore)
+  snakes.map(s => sumSpeedScore += s.score)
+  snakes.map(s => s.fitness = s.score / sumSpeedScore)
+}
+
+
+function gaussianRand() {
+  var rand = 0;
+
+  for (var i = 0; i < 6; i += 1) {
+    rand += Math.random();
+  }
+
+  return rand / 6;
+}
+
+function gaussianRandom(start = 0, end = 1) {
+  return Math.floor(start + gaussianRand() * (end - start + 1));
 }
