@@ -122,8 +122,8 @@ class Snake {
 
     if (brain instanceof NeuralNetwork) {
       this.brain = brain.copy();
-      this.brain.mutate(x => gaussianRandom(x - 0.3, x + 0.3));
-      //this.brain.mutate(0.3);
+      //this.brain.mutate(x => gaussianRandom(x - 0.3, x + 0.3));
+      this.brain.mutate(0.3);
     } else {
       // Parameters are number of inputs, number of units in hidden Layer, number of outputs
       this.brain = new NeuralNetwork(5, 15, 3);

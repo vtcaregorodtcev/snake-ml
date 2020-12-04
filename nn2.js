@@ -57,7 +57,7 @@ class NeuralNetwork {
     return rand / 6;
   }
 
-  gaussianRandom(start = 0, end = 1) {
+  gaussianRandom(start = -1, end = 1) {
     return Math.floor(start + this.gaussianRand() * (end - start + 1));
   }
 
