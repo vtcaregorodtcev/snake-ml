@@ -8,16 +8,20 @@
   <link rel="stylesheet" href="./style.css" />
 
   <script language="javascript" type="text/javascript"
-    src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/p5.min.js"></script>
+    src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.8.0/p5.min.js"></script>
   <script language="javascript" type="text/javascript"
-    src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/addons/p5.dom.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0/dist/tf.min.js"></script>
+    src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.8.0/addons/p5.dom.min.js"></script>
 
-  <script src="./nn.js"></script>
-  <script src="./matrix.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+  <script>
+    tf.setBackend('cpu')
+  </script>
 
   <!-- ga -->
   <script src="./ga.js"></script>
+
+  <script src="./nn.js"></script>
+  <script src="./matrix.js"></script>
 </head>
 
 <body id="body">

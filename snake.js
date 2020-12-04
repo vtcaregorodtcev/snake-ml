@@ -1,7 +1,7 @@
 const id = 'game';
 const size = 30;
-const tick = 1;
-const GOAL = 10;
+const tick = 20;
+const GOAL = 100;
 
 class Table {
   size;
@@ -122,10 +122,11 @@ class Snake {
 
     if (brain instanceof NeuralNetwork) {
       this.brain = brain.copy();
-      this.brain.mutate(x => gaussianRandom(x - 0.2, x + 0.2));
+      this.brain.mutate(x => gaussianRandom(x - 0.3, x + 0.3));
+      //this.brain.mutate(0.3);
     } else {
       // Parameters are number of inputs, number of units in hidden Layer, number of outputs
-      this.brain = new NeuralNetwork(4, 12, 3);
+      this.brain = new NeuralNetwork(5, 15, 3);
     }
   }
 
@@ -185,7 +186,7 @@ class Snake {
       frontMove = toLeft;
       rightMove = toTop;
     } else if (xPrev == toBottom[0] && yPrev == toBottom[1]) { // neak of snake is bottom
-      leftMove = toRight;
+      leftMove = toLeft;
       frontMove = toTop;
       rightMove = toRight;
     }
@@ -194,178 +195,49 @@ class Snake {
     const obstacleFromFront = (this.coordsGonnaIntersect(frontMove) || this.table.isSnake(this.normalize(frontMove), this.id)) ? 1 : 0;
     const obstacleFromRight = (this.coordsGonnaIntersect(rightMove) || this.table.isSnake(this.normalize(rightMove), this.id)) ? 1 : 0;
 
-    const distanceToCandy = this.table.getDistanceToCandy(this.normalize([x, y]));
-
     const distanceToCandyAfterRightMove = this.table.getDistanceToCandy(this.normalize(rightMove));
     const distanceToCandyAfterLeftMove = this.table.getDistanceToCandy(this.normalize(leftMove));
     const distanceToCandyAfterFrontMove = this.table.getDistanceToCandy(this.normalize(frontMove));
 
-    const nextMinDistance = Math.min(distanceToCandyAfterRightMove, distanceToCandyAfterLeftMove, distanceToCandyAfterFrontMove)
+    const suggestings = [{
+      rate: 0,
+      obstacles: obstacleFromLeft,
+      distance: distanceToCandyAfterLeftMove
+    },
+    {
+      rate: 0.5,
+      obstacles: obstacleFromFront,
+      distance: distanceToCandyAfterFrontMove
+    },
+    {
+      rate: 1,
+      obstacles: obstacleFromRight,
+      distance: distanceToCandyAfterRightMove
+    }]
 
-    let suggestedMove = 0;
-    if (nextMinDistance == distanceToCandyAfterRightMove && !obstacleFromRight)
-      suggestedMove = 1;
-    else if (nextMinDistance == distanceToCandyAfterLeftMove && !obstacleFromLeft)
-      suggestedMove = -1;
-    else if (nextMinDistance == distanceToCandyAfterFrontMove && !obstacleFromFront)
-      suggestedMove = 0;
+    const withoutObstacles = suggestings.filter(s => !s.obstacles)
+    const sorted = withoutObstacles.sort((a, b) => a.distance - b.distance);
 
+    let suggestedMove = sorted[0]?.rate;
 
-    /*
-        const distanceToCandy = this.table.getDistanceToCandy(this.normalize([x, y]));
+    if (typeof suggestedMove == 'undefined') suggestedMove = -1;
 
-        const distanceToCandyAfterRight = this.table.getDistanceToCandy(this.normalize([x, y + 1]));
-        const distanceToCandyAfterLeft = this.table.getDistanceToCandy(this.normalize([x, y - 1]));
-        const distanceToCandyAfterUp = this.table.getDistanceToCandy(this.normalize([x - 1, y]));
-        const distanceToCandyAfterDown = this.table.getDistanceToCandy(this.normalize([x + 1, y]));
+    const normDistance = this.table.getDistanceToCandy(this.normalize([x, y])) / 41.012193; // max distance at 30x30
 
-        const nextMinDistance = Math.min(distanceToCandyAfterRight, distanceToCandyAfterLeft, distanceToCandyAfterUp, distanceToCandyAfterDown)
-
-        let candyBeforeX = false;
-        let snakeBeforeX = false;
-        let candyAfterX = false;
-        let snakeAfterX = false;
-
-        let candyBeforeY = false;
-        let snakeBeforeY = false;
-        let candyAfterY = false;
-        let snakeAfterY = false;
-
-        for (let i = 0; i < x; i++) {
-          if (this.table.isCandy([i, y], this.id)) candyBeforeX = true;
-          if (this.table.isSnake([i, y], this.id)) snakeBeforeX = true;
-        }
-
-        for (let i = 0; i < y; i++) {
-          if (this.table.isCandy([x, i], this.id)) candyBeforeY = true;
-          if (this.table.isSnake([x, i], this.id)) snakeBeforeY = true;
-        }
-
-        for (let i = x + 1; i < this.table.size; i++) {
-          if (this.table.isCandy([i, y], this.id)) candyAfterX = true;
-          if (this.table.isSnake([i, y], this.id)) snakeAfterX = true;
-        }
-
-        for (let i = y + 1; i < this.table.size; i++) {
-          if (this.table.isCandy([x, i], this.id)) candyAfterY = true;
-          if (this.table.isSnake([x, i], this.id)) snakeAfterY = true;
-        }
-
-        //const distanceToCandy = this.table.getDistanceToCandy(x, y);
-
-        let distanceToDeathAbove = x;
-        let candyIsAbove = 0;
-
-        for (let i = 0; i < x; i++) {
-          if (this.table.isCandy([i, y], this.id)) {
-            candyIsAbove = 1;
-          }
-          if (this.table.isSnake([i, y], this.id)) {
-            distanceToDeathAbove = Math.min(
-              distanceToDeathAbove,
-              this.getDistanceToHead(i, y)
-            )
-          }
-        }
-
-        let distanceToDeathRight = this.table.size - y;
-        let candyIsRight = 0;
-
-        for (let i = y + 1; i < this.table.size; i++) {
-          if (this.table.isCandy([x, i], this.id)) {
-            candyIsRight = 1;
-          }
-          if (this.table.isSnake([x, i], this.id)) {
-            distanceToDeathRight = Math.min(
-              distanceToDeathRight,
-              this.getDistanceToHead(x, i)
-            )
-          }
-        }
-
-        let distanceToDeathBelow = this.table.size - x;
-        let candyIsBelow = 0;
-
-        for (let i = x + 1; i < this.table.size; i++) {
-          if (this.table.isCandy([i, y], this.id)) {
-            candyIsBelow = 1;
-          }
-          if (this.table.isSnake([i, y], this.id)) {
-            distanceToDeathBelow = Math.min(
-              distanceToDeathBelow,
-              this.getDistanceToHead(i, y)
-            )
-          }
-        }
-
-        let distanceToDeathLeft = y;
-        let candyIsLeft = 0;
-
-        for (let i = 0; i < y; i++) {
-          if (this.table.isCandy([x, i], this.id)) {
-            candyIsLeft = 1;
-          }
-          if (this.table.isSnake([x, i], this.id)) {
-            distanceToDeathLeft = Math.min(
-              distanceToDeathLeft,
-              this.getDistanceToHead(x, i)
-            )
-          }
-        }
-        */
-
-    return [ // check directions from head, if there snake body or candy -> check every line with shift to one cell
-      /*+candyBeforeX, // ^
-      +snakeBeforeX,
-
-      +candyAfterY, // >
-      +snakeAfterY,
-
-      +candyAfterX, // \/
-      +snakeAfterX,
-
-      +candyBeforeY, // <
-      +snakeBeforeY,*/
-
-
-      /*
-            distanceToCandy,
-            distanceToCandyAfterUp,
-            distanceToCandyAfterRight,
-            distanceToCandyAfterDown,
-            distanceToCandyAfterLeft,
-            nextMinDistance
-            */
-
-
+    this.logs = [
       obstacleFromLeft,
       obstacleFromFront,
       obstacleFromRight,
+      suggestedMove,
+      normDistance
+    ];
 
-      suggestedMove
-
-
-      /*candyIsAbove,
-      candyIsRight,
-      candyIsBelow,
-      candyIsLeft,
-
-      this.table.candy.x < x ? 1 : 0, // needTurnUp
-      this.table.candy.y > y ? 1 : 0, // needTurnRight
-      this.table.candy.x > x ? 1 : 0, // needTurnDown
-      this.table.candy.y < y ? 1 : 0, // needTurnLeft
-
-
-      distanceToDeathAbove,
-      distanceToDeathRight,
-      distanceToDeathBelow,
-      distanceToDeathLeft,
-
-      distanceToDeathAbove > 0 ? 1 : 0, // canTurnAbove
-      distanceToDeathRight > 0 ? 1 : 0, // canTurnRight
-      distanceToDeathBelow > 0 ? 1 : 0, // canTurnBelow
-      distanceToDeathLeft > 0 ? 1 : 0, // canTurnLeft
-      */
+    return [
+      obstacleFromLeft,
+      obstacleFromFront,
+      obstacleFromRight,
+      suggestedMove,
+      normDistance
     ];
   }
 
@@ -568,7 +440,7 @@ const init = () => {
 
   const pickBest = () => {
     const best = snakes.sort((a, b) => {
-      return (a.score) - (b.score)
+      return (a.speedScore) - (b.speedScore)
     }).reverse()[0]
 
     snakes.map(snake => snake.id !== best.id && snake.reDrawSnake())

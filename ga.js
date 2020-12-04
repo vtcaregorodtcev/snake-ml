@@ -1,4 +1,4 @@
-const TOTAL = 200;
+const TOTAL = 250;
 let currentGeneration = 1;
 
 const newGeneration = (snakes, table) => {
@@ -38,8 +38,8 @@ const pickOne = (snakes, table) => {
 const calculateFitness = (snakes) => {
   let sumSpeedScore = 0;
 
-  snakes.map(s => sumSpeedScore += s.score)
-  snakes.map(s => s.fitness = s.score / sumSpeedScore)
+  snakes.map(s => sumSpeedScore += s.speedScore)
+  snakes.map(s => s.fitness = s.speedScore / sumSpeedScore)
 }
 
 
